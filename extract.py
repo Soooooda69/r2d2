@@ -8,17 +8,17 @@ from PIL import Image
 import numpy as np
 import torch
 
-from tools import common
-from tools.dataloader import norm_RGB
-from nets.patchnet import *
+from r2d2.tools import common
+from r2d2.tools.dataloader import norm_RGB
+from r2d2.nets.patchnet import *
 
 
 def load_network(model_fn): 
     checkpoint = torch.load(model_fn)
-    print("\n>> Creating net = " + checkpoint['net']) 
+    # print("\n>> Creating net = " + checkpoint['net']) 
     net = eval(checkpoint['net'])
     nb_of_weights = common.model_size(net)
-    print(f" ( Model size: {nb_of_weights/1000:.0f}K parameters )")
+    # print(f" ( Model size: {nb_of_weights/1000:.0f}K parameters )")
 
     # initialization
     weights = checkpoint['state_dict']
@@ -156,6 +156,50 @@ def extract_keypoints(args):
             scores = scores[idxs])
 
 
+def extract_r2d2(args, image_path):
+    iscuda = common.torch_set_gpu(args.gpu)
+
+    # load the network...
+    net = load_network(args.model)
+    if iscuda: net = net.cuda()
+
+    # create the non-maxima detector
+    detector = NonMaxSuppression(
+        rel_thr = args.reliability_thr, 
+        rep_thr = args.repeatability_thr)
+    
+    img_path = image_path
+ 
+    # print(f"\nExtracting features for {img_path}")
+    img = Image.open(img_path).convert('RGB')
+    W, H = img.size
+    img = norm_RGB(img)[None] 
+    if iscuda: img = img.cuda()
+    
+    # extract keypoints/descriptors for a single image
+    xys, desc, scores = extract_multiscale(net, img, detector,
+        scale_f   = args.scale_f, 
+        min_scale = args.min_scale, 
+        max_scale = args.max_scale,
+        min_size  = args.min_size, 
+        max_size  = args.max_size, 
+        verbose = False)
+
+    xys = xys.cpu().numpy()
+    desc = desc.cpu().numpy()
+    scores = scores.cpu().numpy()
+    idxs = scores.argsort()[-args.top_k or None:]
+    
+    # outpath = img_path + '.' + args.tag
+    # print(f"Saving {len(idxs)} keypoints to {outpath}")
+    # np.savez(open(outpath,'wb'), 
+    #     imsize = (W,H),
+    #     keypoints = xys[idxs], 
+    #     descriptors = desc[idxs], 
+    #     scores = scores[idxs])
+    keypoints = xys[idxs]
+    descriptors = desc[idxs]
+    return keypoints, descriptors
 
 if __name__ == '__main__':
     import argparse
