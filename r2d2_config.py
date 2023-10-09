@@ -2,7 +2,7 @@ import argparse
 
 def init_configs():
     parser = argparse.ArgumentParser("Extract keypoints for a given image")
-    parser.add_argument("--model", type=str, help='model path', default='./r2d2/models/faster2d2_WASF_N16.pt')
+    parser.add_argument("--model", type=str, help='model path', default='./DBoW/r2d2/models/faster2d2_WASF_N16.pt')
     parser.add_argument("--images", type=str, nargs='+', help='images / list')
     parser.add_argument("--tag", type=str, default='r2d2', help='output file tag')
 
