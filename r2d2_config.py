@@ -6,7 +6,7 @@ def init_configs():
     parser.add_argument("--images", type=str, nargs='+', help='images / list')
     parser.add_argument("--tag", type=str, default='r2d2', help='output file tag')
 
-    parser.add_argument("--top-k", type=int, default=50, help='number of keypoints')
+    parser.add_argument("--top-k", type=int, default=300, help='number of keypoints')
 
     parser.add_argument("--scale-f", type=float, default=2**0.25)
     parser.add_argument("--min-size", type=int, default=256)

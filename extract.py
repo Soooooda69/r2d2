@@ -11,7 +11,7 @@ import torch
 from DBoW.r2d2.tools import common
 from DBoW.r2d2.tools.dataloader import norm_RGB
 from DBoW.r2d2.nets.patchnet import *
-
+from pathlib import PosixPath
 
 def load_network(model_fn): 
     checkpoint = torch.load(model_fn)
@@ -156,7 +156,7 @@ def extract_keypoints(args):
             scores = scores[idxs])
 
 
-def extract_r2d2(args, image_path):
+def extract_r2d2(args, image_source):
     iscuda = common.torch_set_gpu(args.gpu)
 
     # load the network...
@@ -168,11 +168,13 @@ def extract_r2d2(args, image_path):
         rel_thr = args.reliability_thr, 
         rep_thr = args.repeatability_thr)
     
-    img_path = image_path
- 
+    img_path = image_source
+    if isinstance(img_path, PosixPath):
     # print(f"\nExtracting features for {img_path}")
-    img = Image.open(img_path).convert('RGB')
-    W, H = img.size
+        img = Image.open(img_path).convert('RGB')
+    else:
+        img = image_source
+        [W, H] = img.shape[:2]
     img = norm_RGB(img)[None] 
     if iscuda: img = img.cuda()
     
