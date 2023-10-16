@@ -156,7 +156,7 @@ def extract_keypoints(args):
             scores = scores[idxs])
 
 
-def extract_r2d2(args, image_source):
+def extract_r2d2(args, image_source, top_k):
     iscuda = common.torch_set_gpu(args.gpu)
 
     # load the network...
@@ -190,7 +190,7 @@ def extract_r2d2(args, image_source):
     xys = xys.cpu().numpy()
     desc = desc.cpu().numpy()
     scores = scores.cpu().numpy()
-    idxs = scores.argsort()[-args.top_k or None:]
+    idxs = scores.argsort()[-top_k or None:]
     
     # outpath = img_path + '.' + args.tag
     # print(f"Saving {len(idxs)} keypoints to {outpath}")
