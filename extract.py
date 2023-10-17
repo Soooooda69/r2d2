@@ -7,6 +7,7 @@ import os, pdb
 from PIL import Image
 import numpy as np
 import torch
+import json
 
 from DBoW.r2d2.tools import common
 from DBoW.r2d2.tools.dataloader import norm_RGB
@@ -156,17 +157,23 @@ def extract_keypoints(args):
             scores = scores[idxs])
 
 
-def extract_r2d2(args, image_source, top_k):
-    iscuda = common.torch_set_gpu(args.gpu)
+def load_configs_from_json(json_file_path):
+    with open(json_file_path, 'r') as json_file:
+        args_dict = json.load(json_file)
+    return args_dict
+
+
+def extract_r2d2(configs_dict, image_source, topk):
+    iscuda = common.torch_set_gpu(configs_dict['gpu'])
 
     # load the network...
-    net = load_network(args.model)
+    net = load_network(configs_dict['model'])
     if iscuda: net = net.cuda()
 
     # create the non-maxima detector
     detector = NonMaxSuppression(
-        rel_thr = args.reliability_thr, 
-        rep_thr = args.repeatability_thr)
+        rel_thr = configs_dict['reliability_thr'], 
+        rep_thr = configs_dict['repeatability_thr'])
     
     img_path = image_source
     if isinstance(img_path, PosixPath):
@@ -180,17 +187,17 @@ def extract_r2d2(args, image_source, top_k):
     
     # extract keypoints/descriptors for a single image
     xys, desc, scores = extract_multiscale(net, img, detector,
-        scale_f   = args.scale_f, 
-        min_scale = args.min_scale, 
-        max_scale = args.max_scale,
-        min_size  = args.min_size, 
-        max_size  = args.max_size, 
+        scale_f   = configs_dict['scale_f'], 
+        min_scale = configs_dict['min_scale'], 
+        max_scale = configs_dict['max_scale'],
+        min_size  = configs_dict['min_size'], 
+        max_size  = configs_dict['max_size'], 
         verbose = False)
 
     xys = xys.cpu().numpy()
     desc = desc.cpu().numpy()
     scores = scores.cpu().numpy()
-    idxs = scores.argsort()[-top_k or None:]
+    idxs = scores.argsort()[-topk or None:]
     
     # outpath = img_path + '.' + args.tag
     # print(f"Saving {len(idxs)} keypoints to {outpath}")
@@ -202,28 +209,3 @@ def extract_r2d2(args, image_source, top_k):
     keypoints = xys[idxs]
     descriptors = desc[idxs]
     return keypoints, descriptors
-
-if __name__ == '__main__':
-    import argparse
-    parser = argparse.ArgumentParser("Extract keypoints for a given image")
-    parser.add_argument("--model", type=str, required=True, help='model path')
-    
-    parser.add_argument("--images", type=str, required=True, nargs='+', help='images / list')
-    parser.add_argument("--tag", type=str, default='r2d2', help='output file tag')
-    
-    parser.add_argument("--top-k", type=int, default=5000, help='number of keypoints')
-
-    parser.add_argument("--scale-f", type=float, default=2**0.25)
-    parser.add_argument("--min-size", type=int, default=256)
-    parser.add_argument("--max-size", type=int, default=1024)
-    parser.add_argument("--min-scale", type=float, default=0)
-    parser.add_argument("--max-scale", type=float, default=1)
-    
-    parser.add_argument("--reliability-thr", type=float, default=0.7)
-    parser.add_argument("--repeatability-thr", type=float, default=0.7)
-
-    parser.add_argument("--gpu", type=int, nargs='+', default=[0], help='use -1 for CPU')
-    args = parser.parse_args()
-
-    extract_keypoints(args)
-
